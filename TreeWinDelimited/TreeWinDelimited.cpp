@@ -6,6 +6,9 @@
 #include <experimental/filesystem>
 #include <openssl/md5.h>
 
+#define SEPARATOR '*'
+#define STRING_DELIM '"'
+
 using namespace std;
 namespace fs = std::experimental::filesystem;
 
@@ -17,7 +20,8 @@ int main(int argc, char *argv[])
 
 	if (argc != 3)
 	{
-		printf("\nUsage: %s <directory name> <prefix>\n", argv[0]);
+		printf("\n%s - Copyright 2016 Konvergence srl\n", argv[0]);
+		printf("\tUsage: %s <directory name> <prefix>\n", argv[0]);
 		return (-1);
 	}
 
@@ -29,8 +33,8 @@ int main(int argc, char *argv[])
 			auto ftime = fs::last_write_time(p.path());
 			std::time_t cftime = decltype(ftime)::clock::to_time_t(ftime); // assuming system_clock
 
-			cout << "'" << argv[2] << "', '" << p.path().parent_path() << "', '" << p.path().filename() << "', " << fs::file_size(p.path()) 
-				<< ", '" << std::put_time(std::localtime(&cftime), "%Y-%m-%d %H:%M:%S") << "', '" << file_md5(p.path().string().c_str()) << "'" << endl;
+			cout << STRING_DELIM << argv[2] << STRING_DELIM << SEPARATOR << STRING_DELIM << p.path().parent_path() << STRING_DELIM << SEPARATOR << STRING_DELIM << p.path().filename() << STRING_DELIM << SEPARATOR << fs::file_size(p.path())
+				<< SEPARATOR << STRING_DELIM << std::put_time(std::localtime(&cftime), "%Y-%m-%d %H:%M:%S") << STRING_DELIM << SEPARATOR << STRING_DELIM << file_md5(p.path().string().c_str()) << STRING_DELIM << endl;
 		}
 	}
 
