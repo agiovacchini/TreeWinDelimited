@@ -3,8 +3,10 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <regex>
 #include <experimental/filesystem>
 #include <openssl/md5.h>
+#include <inttypes.h>
 
 #define SEPARATOR '*'
 #define STRING_DELIM '"'
@@ -18,25 +20,62 @@ string file_md5(const char * filename);
 int main(int argc, char *argv[])
 {
 
-	if (argc != 3)
+	if ((argc < 4) || (argc > 6))
 	{
 		printf("\n%s - Copyright 2016 Konvergence srl\n", argv[0]);
-		printf("\tUsage: %s <directory name> <prefix>\n", argv[0]);
+		printf("\tUsage: %s <directory name> <prefix> <outFileName> [exclusionRegex] [sizeLimitBytes]\n", argv[0]);
+		printf("\n\tThis product includes software developed by the OpenSSL Project\n");
+		printf("\tfor use in the OpenSSL Toolkit(http://www.openssl.org/)\n");
 		return (-1);
 	}
 
 	string prefix(argv[2]);
+	ofstream outFile(argv[3]);
+	string md5("");
+	string sFilesToAvoid("");
+	uintmax_t fileSize(0ULL);
+	uintmax_t maxFileSizeToCalc(UINTMAX_MAX);
+
+	if (argc == 5) {
+		sFilesToAvoid = argv[4];
+	} else {
+		sFilesToAvoid = "";
+	}
+
+	if (argc == 6) {
+		maxFileSizeToCalc = strtoumax(argv[5], nullptr, 10);
+	}
+
+	cout << "sFilesToAvoid: " << sFilesToAvoid << ", maxFileSizeToCalc: " << maxFileSizeToCalc << endl;
+	std::regex filesToAvoid(sFilesToAvoid, std::regex_constants::ECMAScript | std::regex_constants::icase);
+
 	// http://en.cppreference.com/w/cpp/experimental/fs/recursive_directory_iterator
 	for (auto& p : fs::recursive_directory_iterator(argv[1])) {
 		if (!fs::is_directory(p)) {
+			fileSize = fs::file_size(p.path());
+
+			if ( (argc == 4) 
+					|| ((argc >= 5) && (!regex_search(p.path().string(), filesToAvoid)) && (fileSize < maxFileSizeToCalc))
+				) {
+				md5 = file_md5(p.path().string().c_str());
+			} else {
+				md5 = "NO_CALC";
+			}
 
 			auto ftime = fs::last_write_time(p.path());
 			std::time_t cftime = decltype(ftime)::clock::to_time_t(ftime); // assuming system_clock
-
-			cout << STRING_DELIM << argv[2] << STRING_DELIM << SEPARATOR << STRING_DELIM << p.path().parent_path() << STRING_DELIM << SEPARATOR << STRING_DELIM << p.path().filename() << STRING_DELIM << SEPARATOR << fs::file_size(p.path())
-				<< SEPARATOR << STRING_DELIM << std::put_time(std::localtime(&cftime), "%Y-%m-%d %H:%M:%S") << STRING_DELIM << SEPARATOR << STRING_DELIM << file_md5(p.path().string().c_str()) << STRING_DELIM << endl;
+				
+			outFile << STRING_DELIM << argv[2] << STRING_DELIM 
+				<< SEPARATOR << STRING_DELIM << p.path().parent_path() << STRING_DELIM 
+				<< SEPARATOR << STRING_DELIM << p.path().filename() << STRING_DELIM 
+				<< SEPARATOR << fileSize
+				<< SEPARATOR << STRING_DELIM 
+				<< std::put_time(std::localtime(&cftime), "%Y-%m-%d %H:%M:%S") << STRING_DELIM 
+				<< SEPARATOR << STRING_DELIM << md5 << STRING_DELIM 
+				<< endl;			
 		}
 	}
+	outFile.close();
 
 	return 0;
 }
